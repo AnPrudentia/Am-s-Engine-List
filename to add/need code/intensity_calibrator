@@ -1,0 +1,66 @@
+
+from typing import Dict
+import uuid
+from datetime import datetime
+
+class IntensityCalibrator:
+    def __init__(self):
+        self.calibration_log = []
+
+    def calibrate_intensity(self, raw_score: float, emotion: str, modifiers: Dict[str, float]) -> float:
+        """
+        Adjust emotional intensity based on modifiers such as context, personality, and neuro-profile.
+        """
+        emotion_modifier = modifiers.get("emotion_modifier", {}).get(emotion, 1.0)
+        context_modifier = modifiers.get("context_modifier", 1.0)
+        neuro_modifier = modifiers.get("neuro_profile_modifier", 1.0)
+
+        adjusted_score = raw_score * emotion_modifier * context_modifier * neuro_modifier
+        calibrated = max(0.0, min(1.0, round(adjusted_score, 3)))
+
+        entry = {
+            "id": str(uuid.uuid4()),
+            "timestamp": datetime.utcnow().isoformat(),
+            "emotion": emotion,
+            "raw_score": raw_score,
+            "calibrated_score": calibrated,
+            "modifiers": {
+                "emotion": emotion_modifier,
+                "context": context_modifier,
+                "neuro": neuro_modifier
+            }
+        }
+
+        self.calibration_log.append(entry)
+        return calibrated
+
+    def calibrate_batch(self, emotion_scores: Dict[str, float], modifiers: Dict[str, float]) -> Dict[str, float]:
+        """
+        Apply calibration to a batch of emotions.
+        """
+        return {
+            emotion: self.calibrate_intensity(score, emotion, modifiers)
+            for emotion, score in emotion_scores.items()
+        }
+
+    def get_log(self):
+        return self.calibration_log
+
+# Demo
+if __name__ == "__main__":
+    calibrator = IntensityCalibrator()
+    emotion_scores = {
+        "joy": 0.8,
+        "anger": 0.6,
+        "grief": 0.9
+    }
+    modifiers = {
+        "emotion_modifier": {"joy": 1.1, "anger": 0.9, "grief": 1.0},
+        "context_modifier": 0.95,
+        "neuro_profile_modifier": 1.05
+    }
+
+    print("ðŸ”¥ Intensity Calibration:")
+    results = calibrator.calibrate_batch(emotion_scores, modifiers)
+    for emotion, calibrated in results.items():
+        print(f"- {emotion}: {calibrated}")
