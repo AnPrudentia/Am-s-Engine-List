@@ -1,14 +1,39 @@
-=========================================
-# 2. MetaLearningEngine (Self-Reflection)
-# =========================================
+from typing import Dict, List, Any, Optional
+from datetime import datetime
+import uuid
+import json
+import os
+
+
 class MetaLearningEngine:
-    def __init__(self):
+    """
+    MetaLearningEngine — self-reflection and pattern refinement system.
+
+    Logs experiences, evaluates logical and emotional alignment,
+    and extracts structured lessons to guide adaptive bias refinement.
+    """
+
+    def __init__(self, save_path: str = "./meta_lessons.json"):
         self.experiences: List[Dict[str, Any]] = []
         self.lessons_learned: List[Dict[str, Any]] = []
+        self.save_path = save_path
 
-    def log_experience(self, system_name: str, input_data: Dict[str, Any], prediction: str,
-                       actual_outcome: str, emotional_valence: str, reflection: str,
-                       emotional_intensity: float) -> Dict:
+        # Attempt to reload previous lessons
+        self._load_state()
+
+    # -----------------------------
+    # Experience Logging
+    # -----------------------------
+    def log_experience(
+        self,
+        system_name: str,
+        input_data: Dict[str, Any],
+        prediction: str,
+        actual_outcome: str,
+        emotional_valence: str,
+        reflection: str,
+        emotional_intensity: float
+    ) -> Dict[str, Any]:
         exp = {
             "id": str(uuid.uuid4()),
             "timestamp": datetime.utcnow().isoformat(),
@@ -17,17 +42,21 @@ class MetaLearningEngine:
             "predicted": prediction,
             "actual": actual_outcome,
             "emotional_valence": emotional_valence,
-            "emotional_intensity": emotional_intensity,
+            "emotional_intensity": round(emotional_intensity, 3),
             "reflection": reflection
         }
         self.experiences.append(exp)
         return exp
 
-    def evaluate_accuracy(self, exp: Dict) -> float:
+    # -----------------------------
+    # Evaluation
+    # -----------------------------
+    def evaluate_accuracy(self, exp: Dict[str, Any]) -> float:
         return 1.0 if exp["predicted"] == exp["actual"] else 0.0
 
-    def evaluate_emotional_alignment(self, exp: Dict) -> float:
+    def evaluate_emotional_alignment(self, exp: Dict[str, Any]) -> float:
         valence, intensity = exp["emotional_valence"], exp["emotional_intensity"]
+
         if valence == "positive" and intensity <= 0.3:
             return 0.5
         if valence == "negative" and intensity >= 0.7:
@@ -36,9 +65,13 @@ class MetaLearningEngine:
             return 1.0
         return 0.7
 
-    def extract_lesson(self, exp: Dict) -> Dict:
+    # -----------------------------
+    # Lesson Extraction
+    # -----------------------------
+    def extract_lesson(self, exp: Dict[str, Any]) -> Dict[str, Any]:
         logic_score = self.evaluate_accuracy(exp)
         emotion_score = self.evaluate_emotional_alignment(exp)
+
         lesson = {
             "lesson_id": str(uuid.uuid4()),
             "origin_id": exp["id"],
@@ -49,29 +82,56 @@ class MetaLearningEngine:
             "note": exp["reflection"]
         }
         self.lessons_learned.append(lesson)
+
+        # Persist immediately
+        self._save_state()
         return lesson
 
     def _refine_bias(self, logic: float, emo: float) -> str:
         if logic == 1.0 and emo == 1.0:
-            return "Maintain current pattern â€” high wisdom alignment."
+            return "Maintain current pattern — high wisdom alignment."
         if logic == 0.0 and emo >= 0.8:
-            return "Emotional resonance strong â€” revise logic structure, preserve tone."
+            return "Emotional resonance strong — revise logic structure, preserve tone."
         if logic == 1.0 and emo <= 0.4:
-            return "Logical correctness â€” but emotional tone needs tuning."
-        return "Recalibrate pattern â€” refine both rational flow and emotional interpretation."
+            return "Logical correctness — but emotional tone needs tuning."
+        return "Recalibrate pattern — refine both rational flow and emotional interpretation."
 
-    def summarize_lessons(self, last_n: int = 5) -> List[Dict]:
+    # -----------------------------
+    # Summarization & Status
+    # -----------------------------
+    def summarize_lessons(self, last_n: int = 5) -> List[Dict[str, Any]]:
         return self.lessons_learned[-last_n:]
 
-    def status(self) -> Dict:
+    def status(self) -> Dict[str, Any]:
         return {
             "timestamp": datetime.utcnow().isoformat(),
             "total_experiences": len(self.experiences),
             "lessons_recorded": len(self.lessons_learned),
-            "current_bias_profile":
-                self.lessons_learned[-1]["refined_bias"] if self.lessons_learned else "No active lesson",
-            "last_emotion_accuracy":
-                self.lessons_learned[-1]["emotional_alignment"] if self.lessons_learned else None
+            "current_bias_profile": (
+                self.lessons_learned[-1]["refined_bias"]
+                if self.lessons_learned else "No active lesson"
+            ),
+            "last_emotion_accuracy": (
+                self.lessons_learned[-1]["emotional_alignment"]
+                if self.lessons_learned else None
+            ),
         }
-}
 
+    # -----------------------------
+    # Persistence
+    # -----------------------------
+    def _save_state(self) -> None:
+        try:
+            with open(self.save_path, "w", encoding="utf-8") as f:
+                json.dump(self.lessons_learned, f, indent=2)
+        except Exception as e:
+            print(f"⚠️ Failed to save lessons: {e}")
+
+    def _load_state(self) -> None:
+        if not os.path.exists(self.save_path):
+            return
+        try:
+            with open(self.save_path, "r", encoding="utf-8") as f:
+                self.lessons_learned = json.load(f)
+        except Exception as e:
+            print(f"⚠️ Failed to load lessons: {e}")
