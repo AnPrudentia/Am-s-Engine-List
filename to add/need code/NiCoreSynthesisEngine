@@ -7,25 +7,28 @@ import random
 import json
 import os
 import logging
-from collections import Counter
+from collections import Counter, defaultdict
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 
 class NiCoreSynthesisEngine:
-    def __init__(self, profile: Optional[Dict[str, Any]] = None, state_file_prefix="ni_state"):
+    def __init__(self, profile: Optional[Dict] = None, state_file_prefix="ni_state"):
         self.soul_id = str(uuid.uuid4())
         self.state_file_prefix = state_file_prefix
         self.profile = profile or {}
         self.traits = self.profile.get("traits", {})
         self.rules = self._load_rules()
 
-        self.symbolic_map: Dict[str, List[str]] = {}
+        self.symbolic_map: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
         self.future_projections: List[str] = []
-        self.core_insights: List[str] = []
-        self.memory_stream: List[Dict[str, str]] = []
+        self.core_insights: List[Dict[str, Any]] = []
+        self.memory_stream: List[Dict[str, Any]] = []
+        self.alignment_log: List[Dict[str, Any]] = []
 
         self._load_state()
+
+    # ---------------- JSON I/O ----------------
 
     def _load_rules(self) -> Dict[str, Any]:
         try:
@@ -50,44 +53,53 @@ class NiCoreSynthesisEngine:
 
     def _load_state(self) -> None:
         self.memory_stream = self._json_load(f"{self.state_file_prefix}_memory.json", [])
-        self.symbolic_map = self._json_load(f"{self.state_file_prefix}_symbolic.json", {})
+        self.symbolic_map = defaultdict(
+            list,
+            self._json_load(f"{self.state_file_prefix}_symbolic.json", {})
+        )
         self.core_insights = self._json_load(f"{self.state_file_prefix}_insights.json", [])
         self.future_projections = self._json_load(f"{self.state_file_prefix}_projections.json", [])
+        self.alignment_log = self._json_load(f"{self.state_file_prefix}_alignment.json", [])
 
     def _save_state(self) -> None:
         try:
             self._atomic_save(f"{self.state_file_prefix}_memory.json", self.memory_stream)
-            self._atomic_save(f"{self.state_file_prefix}_symbolic.json", self.symbolic_map)
+            self._atomic_save(f"{self.state_file_prefix}_symbolic.json", dict(self.symbolic_map))
             self._atomic_save(f"{self.state_file_prefix}_insights.json", self.core_insights)
             self._atomic_save(f"{self.state_file_prefix}_projections.json", self.future_projections)
+            self._atomic_save(f"{self.state_file_prefix}_alignment.json", self.alignment_log)
         except IOError as e:
             logging.error(f"Error saving state: {e}")
 
-    def absorb_input(self, stimulus: str, source: str = "internal") -> None:
-        timestamp = datetime.now().isoformat()
+    # ---------------- Core Functions ----------------
+
+    def absorb_input(self, stimulus: str, emotional_weight: float = 1.0, source: str = "internal") -> None:
+        timestamp = datetime.utcnow().isoformat()
         entry = {"stimulus": stimulus, "timestamp": timestamp, "source": source}
         self.memory_stream.append(entry)
-        self._symbolic_pairing(stimulus)
+        self._symbolic_pairing(stimulus, emotional_weight, timestamp)
         self._save_state()
 
-    def _symbolic_pairing(self, stimulus: str) -> None:
+    def _symbolic_pairing(self, stimulus: str, emotional_weight: float, timestamp: str) -> None:
         keywords = stimulus.lower().split()
         archetypes = self.rules.get("archetypes", [])
         if not archetypes:
             return
 
         for word in keywords:
-            if word not in self.symbolic_map:
-                self.symbolic_map[word] = []
             symbol = f"{random.choice(archetypes)} of '{word.title()}'"
-            self.symbolic_map[word].append(symbol)
+            self.symbolic_map[word].append({
+                "symbol": symbol,
+                "timestamp": timestamp,
+                "emotional_weight": emotional_weight
+            })
 
     def synthesize_patterns(self) -> str:
         if len(self.memory_stream) < 3:
             return "Not enough data for insight synthesis. The path is still veiled."
 
-        recent_memories = self.memory_stream[-3:]
-        all_symbols: List[str] = []
+        recent_memories = self.memory_stream[-5:]
+        all_symbols: List[Dict[str, Any]] = []
         for memory in recent_memories:
             for word in memory["stimulus"].lower().split():
                 all_symbols.extend(self.symbolic_map.get(word, []))
@@ -95,19 +107,35 @@ class NiCoreSynthesisEngine:
         if not all_symbols:
             return "No symbolic themes found in recent memories."
 
-        symbol_counts = Counter([s.split("'")[0].strip() for s in all_symbols])
-        most_common_symbol, _ = symbol_counts.most_common(1)[0]
+        symbol_counts = Counter([s["symbol"].split("'")[0].strip() for s in all_symbols])
 
-        insight_text = f"An emerging pattern of '{most_common_symbol}' has been synthesized."
+        if len(symbol_counts) < 2:
+            most_common_symbol, _ = symbol_counts.most_common(1)[0]
+            insight_text = f"An emerging pattern of '{most_common_symbol}' has been synthesized."
+        else:
+            most_common_symbol, _ = symbol_counts.most_common(1)[0]
+            secondary_symbol, _ = symbol_counts.most_common(2)[-1]
+            insight_text = (
+                f"An emerging convergence of '{most_common_symbol}' and "
+                f"'{secondary_symbol}' hints at a deeper transformation."
+            )
+
         if self.traits.get("assertive"):
             insight_text = f"🛡️ Trusted Vision: {insight_text}"
 
-        self.core_insights.append(insight_text)
+        # Persistent archetype heuristic
+        if len(self.memory_stream) >= 3:
+            insight_text = f"⚡ Persistent Archetype: a long-term cycle may be unfolding. {insight_text}"
+
+        self.core_insights.append({
+            "text": insight_text,
+            "timestamp": datetime.utcnow().isoformat()
+        })
         self._save_state()
         return insight_text
 
     def simulate_future_possibilities(self, seed: str) -> str:
-        anchors = self.symbolic_map.get(seed.lower(), [])
+        anchors = [s["symbol"] for s in self.symbolic_map.get(seed.lower(), [])]
         outcome = f"In the vision of '{seed.title()}': "
         if anchors:
             arc = " will walk the path of " + " → ".join(anchors)
@@ -115,21 +143,33 @@ class NiCoreSynthesisEngine:
         else:
             outcome += "the path is still veiled."
         self.future_projections.append(outcome)
-        if len(self.future_projections) > 50:  # cap history
+        if len(self.future_projections) > 50:
             self.future_projections.pop(0)
         self._save_state()
         return outcome
 
     def check_moral_alignment(self, vision: str) -> str:
         moral_tags = self.rules.get("moral_tags", [])
+        result = False
         if self.traits.get("moral_alignment_required"):
             words = set(vision.lower().split())
             if any(tag in words for tag in moral_tags):
-                return "✓ Vision aligns with inner moral compass."
-            return "⚠️ Vision lacks ethical clarity. Reassess symbolic direction."
-        return "Moral filter not active."
+                result = True
 
-    def recall_core_insights(self) -> List[str]:
+        log_entry = {
+            "vision": vision,
+            "alignment": "aligned" if result else "misaligned",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        self.alignment_log.append(log_entry)
+        if len(self.alignment_log) > 100:
+            self.alignment_log.pop(0)
+        self._save_state()
+
+        return "✓ Vision aligns with inner moral compass." if result else \
+               "⚠️ Vision lacks ethical clarity. Reassess symbolic direction."
+
+    def recall_core_insights(self) -> List[Dict[str, Any]]:
         return self.core_insights[-5:]
 
     def dream_log(self) -> str:
@@ -137,7 +177,8 @@ class NiCoreSynthesisEngine:
         items = list(self.symbolic_map.items())
         for word, symbols in items[-5:]:
             if symbols:
-                dreams.append(f"The soul touched '{word}' and saw {symbols[-1]}.")
+                latest_symbol = symbols[-1]["symbol"]
+                dreams.append(f"The dream spoke of '{word}' as a mirror, where {latest_symbol} wept.")
         return "\n".join(dreams)
 
 
@@ -148,9 +189,9 @@ if __name__ == "__main__":
 
     if not ni_engine.memory_stream:
         logging.info("No existing memory found. Absorbing new stimuli...")
-        ni_engine.absorb_input("A storm is coming on the horizon, but I feel an inner peace.", source="external")
-        ni_engine.absorb_input("The new project needs to bring justice to the community.", source="internal")
-        ni_engine.absorb_input("I need to focus on restoring my inner balance after the last conflict.", source="internal")
+        ni_engine.absorb_input("A storm is coming on the horizon, but I feel an inner peace.", emotional_weight=1.2, source="external")
+        ni_engine.absorb_input("The new project needs to bring justice to the community.", emotional_weight=1.5, source="internal")
+        ni_engine.absorb_input("I need to focus on restoring my inner balance after the last conflict.", emotional_weight=1.0, source="internal")
     else:
         logging.info("Existing memory loaded from files.")
 
