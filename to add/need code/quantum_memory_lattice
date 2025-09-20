@@ -1,0 +1,12 @@
+class QuantumMemoryLattice:
+    def __init__(self):
+        self.tagger = MemoryEmotionTagger()
+        self.recall_engine = AssociativeRecallEngine()
+
+    def encode_memory(self, memory: str, emotion: str, intensity: float):
+        tagged = self.tagger.tag(memory, emotion, intensity)
+        self.recall_engine.store_memory(tagged)
+        return tagged
+
+    def retrieve_by_emotion(self, emotion: str, threshold: float = 0.5):
+        return self.recall_engine.recall(emotion, threshold
