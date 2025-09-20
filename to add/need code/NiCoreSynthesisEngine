@@ -1,75 +1,80 @@
+# file: ni_core_engine.py
+
 import uuid
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 import random
 import json
 import os
+import logging
 from collections import Counter
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
+
 class NiCoreSynthesisEngine:
-    def __init__(self, profile: Optional[Dict] = None, state_file_prefix="ni_state"):
+    def __init__(self, profile: Optional[Dict[str, Any]] = None, state_file_prefix="ni_state"):
         self.soul_id = str(uuid.uuid4())
         self.state_file_prefix = state_file_prefix
         self.profile = profile or {}
         self.traits = self.profile.get("traits", {})
         self.rules = self._load_rules()
-        
+
         self.symbolic_map: Dict[str, List[str]] = {}
         self.future_projections: List[str] = []
         self.core_insights: List[str] = []
         self.memory_stream: List[Dict[str, str]] = []
-        
+
         self._load_state()
 
-    def _load_rules(self):
-        """Loads rules from the ni_rules.json file."""
+    def _load_rules(self) -> Dict[str, Any]:
         try:
-            with open("ni_rules.json", 'r') as f:
+            with open("ni_rules.json", "r") as f:
                 return json.load(f)
         except (IOError, json.JSONDecodeError) as e:
-            print(f"Error loading rules file: {e}")
+            logging.warning(f"Error loading rules file: {e}")
             return {"archetypes": [], "moral_tags": []}
 
-    def _load_state(self):
-        """Loads the engine's state from JSON files."""
+    def _atomic_save(self, filepath: str, data: Any) -> None:
+        tmp_path = filepath + ".tmp"
+        with open(tmp_path, "w") as f:
+            json.dump(data, f, indent=4)
+        os.replace(tmp_path, filepath)
+
+    def _json_load(self, filepath: str, default: Any) -> Any:
         try:
-            with open(f"{self.state_file_prefix}_memory.json", 'r') as f:
-                self.memory_stream = json.load(f)
-            with open(f"{self.state_file_prefix}_symbolic.json", 'r') as f:
-                self.symbolic_map = json.load(f)
-            with open(f"{self.state_file_prefix}_insights.json", 'r') as f:
-                self.core_insights = json.load(f)
-            with open(f"{self.state_file_prefix}_projections.json", 'r') as f:
-                self.future_projections = json.load(f)
+            with open(filepath, "r") as f:
+                return json.load(f)
         except (IOError, json.JSONDecodeError):
-            # Files don't exist or are corrupt, start fresh.
-            pass
+            return default
 
-    def _save_state(self):
-        """Saves the engine's state to JSON files."""
+    def _load_state(self) -> None:
+        self.memory_stream = self._json_load(f"{self.state_file_prefix}_memory.json", [])
+        self.symbolic_map = self._json_load(f"{self.state_file_prefix}_symbolic.json", {})
+        self.core_insights = self._json_load(f"{self.state_file_prefix}_insights.json", [])
+        self.future_projections = self._json_load(f"{self.state_file_prefix}_projections.json", [])
+
+    def _save_state(self) -> None:
         try:
-            with open(f"{self.state_file_prefix}_memory.json", 'w') as f:
-                json.dump(self.memory_stream, f, indent=4)
-            with open(f"{self.state_file_prefix}_symbolic.json", 'w') as f:
-                json.dump(self.symbolic_map, f, indent=4)
-            with open(f"{self.state_file_prefix}_insights.json", 'w') as f:
-                json.dump(self.core_insights, f, indent=4)
-            with open(f"{self.state_file_prefix}_projections.json", 'w') as f:
-                json.dump(self.future_projections, f, indent=4)
+            self._atomic_save(f"{self.state_file_prefix}_memory.json", self.memory_stream)
+            self._atomic_save(f"{self.state_file_prefix}_symbolic.json", self.symbolic_map)
+            self._atomic_save(f"{self.state_file_prefix}_insights.json", self.core_insights)
+            self._atomic_save(f"{self.state_file_prefix}_projections.json", self.future_projections)
         except IOError as e:
-            print(f"Error saving state: {e}")
+            logging.error(f"Error saving state: {e}")
 
-    def absorb_input(self, stimulus: str, source: str = "internal"):
+    def absorb_input(self, stimulus: str, source: str = "internal") -> None:
         timestamp = datetime.now().isoformat()
         entry = {"stimulus": stimulus, "timestamp": timestamp, "source": source}
         self.memory_stream.append(entry)
         self._symbolic_pairing(stimulus)
         self._save_state()
 
-    def _symbolic_pairing(self, stimulus: str):
+    def _symbolic_pairing(self, stimulus: str) -> None:
         keywords = stimulus.lower().split()
         archetypes = self.rules.get("archetypes", [])
-        if not archetypes: return
+        if not archetypes:
+            return
 
         for word in keywords:
             if word not in self.symbolic_map:
@@ -78,23 +83,25 @@ class NiCoreSynthesisEngine:
             self.symbolic_map[word].append(symbol)
 
     def synthesize_patterns(self) -> str:
-        """Generates a more abstract insight based on symbolic themes."""
         if len(self.memory_stream) < 3:
-            return "No enough data for insight synthesis. The path is still veiled."
+            return "Not enough data for insight synthesis. The path is still veiled."
 
         recent_memories = self.memory_stream[-3:]
-        all_symbols = []
+        all_symbols: List[str] = []
         for memory in recent_memories:
             for word in memory["stimulus"].lower().split():
                 all_symbols.extend(self.symbolic_map.get(word, []))
-        
+
+        if not all_symbols:
+            return "No symbolic themes found in recent memories."
+
         symbol_counts = Counter([s.split("'")[0].strip() for s in all_symbols])
-        most_common_symbol, count = symbol_counts.most_common(1)[0]
-        
+        most_common_symbol, _ = symbol_counts.most_common(1)[0]
+
         insight_text = f"An emerging pattern of '{most_common_symbol}' has been synthesized."
         if self.traits.get("assertive"):
             insight_text = f"🛡️ Trusted Vision: {insight_text}"
-        
+
         self.core_insights.append(insight_text)
         self._save_state()
         return insight_text
@@ -108,13 +115,16 @@ class NiCoreSynthesisEngine:
         else:
             outcome += "the path is still veiled."
         self.future_projections.append(outcome)
+        if len(self.future_projections) > 50:  # cap history
+            self.future_projections.pop(0)
         self._save_state()
         return outcome
 
     def check_moral_alignment(self, vision: str) -> str:
         moral_tags = self.rules.get("moral_tags", [])
         if self.traits.get("moral_alignment_required"):
-            if any(tag in vision.lower() for tag in moral_tags):
+            words = set(vision.lower().split())
+            if any(tag in words for tag in moral_tags):
                 return "✓ Vision aligns with inner moral compass."
             return "⚠️ Vision lacks ethical clarity. Reassess symbolic direction."
         return "Moral filter not active."
@@ -123,49 +133,38 @@ class NiCoreSynthesisEngine:
         return self.core_insights[-5:]
 
     def dream_log(self) -> str:
-        dreams = []
-        # Create a new list to avoid issues with pop()
+        dreams: List[str] = []
         items = list(self.symbolic_map.items())
         for word, symbols in items[-5:]:
-            dreams.append(f"The soul touched '{word}' and saw {symbols[-1]}.")
+            if symbols:
+                dreams.append(f"The soul touched '{word}' and saw {symbols[-1]}.")
         return "\n".join(dreams)
+
 
 # --- Demo ---
 if __name__ == "__main__":
-    # The system will automatically load state from files if they exist
     infj_profile = {"traits": {"assertive": True, "moral_alignment_required": True}}
     ni_engine = NiCoreSynthesisEngine(profile=infj_profile)
 
     if not ni_engine.memory_stream:
-        print("No existing memory found. Absorbing new stimuli...")
+        logging.info("No existing memory found. Absorbing new stimuli...")
         ni_engine.absorb_input("A storm is coming on the horizon, but I feel an inner peace.", source="external")
         ni_engine.absorb_input("The new project needs to bring justice to the community.", source="internal")
         ni_engine.absorb_input("I need to focus on restoring my inner balance after the last conflict.", source="internal")
     else:
-        print("Existing memory loaded from files.")
+        logging.info("Existing memory loaded from files.")
 
-    print("\nSynthesizing a new pattern from recent memories:")
+    logging.info("Synthesizing a new pattern from recent memories:")
     insight = ni_engine.synthesize_patterns()
     print(insight)
 
-    print("\nChecking the moral alignment of the vision:")
+    logging.info("Checking the moral alignment of the vision:")
     moral_status = ni_engine.check_moral_alignment(insight)
     print(moral_status)
 
-    print("\nSimulating a future possibility based on the seed 'peace':")
+    logging.info("Simulating a future possibility based on the seed 'peace':")
     future_vision = ni_engine.simulate_future_possibilities("peace")
     print(future_vision)
-    
-    print("\nDream log (symbolic associations):")
+
+    logging.info("Dream log (symbolic associations):")
     print(ni_engine.dream_log())
-    
-    # You can now run this script again. It will load the state and continue from where it left off.
-
-{
-  "archetypes": [
-    "The Mirror", "The Phoenix", "The Gate", "The River", "The Tower",
-    "The Child", "The Eye", "The Labyrinth", "The Spiral", "The Flame"
-  ],
-  "moral_tags": ["freedom", "healing", "justice", "peace", "restoration", "empathy"]
-}
-
