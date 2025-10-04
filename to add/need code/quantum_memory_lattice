@@ -1,12 +1,24 @@
 class QuantumMemoryLattice:
+    """
+    Quantum-inspired lattice for memory storage and retrieval.
+    Memories are encoded with emotional tags and intensities, then
+    stored in an associative recall engine for later retrieval.
+    """
+
     def __init__(self):
         self.tagger = MemoryEmotionTagger()
         self.recall_engine = AssociativeRecallEngine()
 
-    def encode_memory(self, memory: str, emotion: str, intensity: float):
+    def encode_memory(self, memory: str, emotion: str, intensity: float) -> dict:
+        """
+        Encode a memory with emotional context and store it.
+        """
         tagged = self.tagger.tag(memory, emotion, intensity)
         self.recall_engine.store_memory(tagged)
         return tagged
 
-    def retrieve_by_emotion(self, emotion: str, threshold: float = 0.5):
-        return self.recall_engine.recall(emotion, threshold
+    def retrieve_by_emotion(self, emotion: str, threshold: float = 0.5) -> list:
+        """
+        Retrieve memories associated with a given emotion above a threshold.
+        """
+        return self.recall_engine.recall(emotion, threshold)
