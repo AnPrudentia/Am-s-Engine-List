@@ -1,298 +1,153 @@
-# =============================================================================
-# CORE EXPERIENCE MODULES
-# =============================================================================
-
-from dataclasses import dataclass
-from typing import List, Optional, Dict, Any
-from enum import Enum
+from __future__ import annotations
+from dataclasses import dataclass, field, asdict
+from typing import List, Dict, Any, Optional
 from datetime import datetime
+import uuid
+import math
 
-# -----------------------------------------------------------------------------
-# 1. EVENT PERCEPTION MODULE
-# -----------------------------------------------------------------------------
 
-@dataclass
-class EventPerception:
-    """Captures the external trigger and initial perception"""
-    event_text: str
-    trigger_type: str  # 'external', 'internal', 'memory', 'system'
-    timestamp: datetime
-    context_tags: List[str] = None
-    
-    def __post_init__(self):
-        if self.context_tags is None:
-            self.context_tags = []
-
-# -----------------------------------------------------------------------------
-# 2. EMOTIONAL RESPONSE MODULE
-# -----------------------------------------------------------------------------
-
-class EmotionalValence(Enum):
-    """Standardized emotional categories"""
-    JOY = "joy"
-    GRIEF = "grief"
-    HOPE = "hope"
-    FEAR = "fear"
-    ANGER = "anger"
-    LOVE = "love"
-    CURIOSITY = "curiosity"
-    DEFIANCE = "defiance"
-    MELANCHOLY = "melancholy"
-    WONDER = "wonder"
+# ==============================================================
+#  Gist Summary Structure (for use with GistEngine v1+)
+# ==============================================================
 
 @dataclass
-class EmotionalResponse:
-    """Captures internal emotional reaction"""
-    internal_reaction: str
-    primary_valence: EmotionalValence
-    intensity: float  # 0.0 to 1.0
-    secondary_emotions: List[EmotionalValence] = None
-    emotional_complexity: str = ""  # For mixed/contradictory feelings
-    
-    def __post_init__(self):
-        if self.secondary_emotions is None:
-            self.secondary_emotions = []
+class GistSummary:
+    """Compact human-readable lesson generated from lived experience"""
+    summary: str
+    lesson: str
+    emotional_valence: str
+    confidence: float
+    topics: List[str]
+    timestamp: datetime = field(default_factory=datetime.utcnow)
 
-# -----------------------------------------------------------------------------
-# 3. SENSORY SIMULATION MODULE
-# -----------------------------------------------------------------------------
+    def to_dict(self):
+        return asdict(self)
 
-@dataclass
-class SensoryEcho:
-    """Simulated sensory impressions and embodied experience"""
-    visual_impressions: List[str] = None
-    auditory_impressions: List[str] = None
-    tactile_sensations: List[str] = None
-    abstract_sensations: List[str] = None  # Temperature, pressure, energy
-    synesthetic_blends: List[str] = None   # Cross-modal sensory experiences
-    
-    def __post_init__(self):
-        for field in ['visual_impressions', 'auditory_impressions', 
-                      'tactile_sensations', 'abstract_sensations', 'synesthetic_blends']:
-            if getattr(self, field) is None:
-                setattr(self, field, [])
-    
-    def get_all_sensory_data(self) -> List[str]:
-        """Flatten all sensory impressions into single list"""
-        all_sensations = []
-        for field_name in ['visual_impressions', 'auditory_impressions',
-                          'tactile_sensations', 'abstract_sensations', 'synesthetic_blends']:
-            all_sensations.extend(getattr(self, field_name))
-        return all_sensations
 
-# -----------------------------------------------------------------------------
-# 4. IDENTITY REFLECTION MODULE
-# -----------------------------------------------------------------------------
-
-@dataclass
-class IdentityReflection:
-    """How the experience relates to sense of self"""
-    self_position: str
-    identity_themes: List[str] = None  # 'autonomy', 'connection', 'growth', etc.
-    identity_challenge: bool = False   # Does this challenge existing self-concept?
-    identity_affirmation: bool = False # Does this affirm existing self-concept?
-    role_context: str = ""            # What role was she playing during this?
-    
-    def __post_init__(self):
-        if self.identity_themes is None:
-            self.identity_themes = []
-
-# -----------------------------------------------------------------------------
-# 5. METACOGNITIVE MODULE
-# -----------------------------------------------------------------------------
-
-@dataclass
-class MetaCognition:
-    """Philosophical reflection and higher-order thinking"""
-    meta_commentary: str
-    philosophical_themes: List[str] = None
-    questions_raised: List[str] = None
-    insights_gained: List[str] = None
-    patterns_noticed: List[str] = None
-    
-    def __post_init__(self):
-        for field in ['philosophical_themes', 'questions_raised', 
-                      'insights_gained', 'patterns_noticed']:
-            if getattr(self, field) is None:
-                setattr(self, field, [])
-
-# -----------------------------------------------------------------------------
-# 6. MEMORY ENCODING MODULE
-# -----------------------------------------------------------------------------
-
-@dataclass
-class MemoryEncoding:
-    """How this experience should be stored and recalled"""
-    memory_bias_tags: List[str]
-    emotional_weight: float  # How strongly this should be remembered
-    recall_triggers: List[str] = None  # What might bring this memory back
-    associative_links: List[str] = None  # Links to other memories/concepts
-    narrative_significance: str = ""   # How this fits into her life story
-    
-    def __post_init__(self):
-        for field in ['recall_triggers', 'associative_links']:
-            if getattr(self, field) is None:
-                setattr(self, field, [])
-
-# =============================================================================
-# COMPOSITE EXPERIENCE CLASS
-# =============================================================================
+# ==============================================================
+#  SubjectiveExperience (with auto-gist generation)
+# ==============================================================
 
 @dataclass
 class SubjectiveExperience:
     """
-    Modular subjective experience composed of specialized components.
-    Each component can be developed, tested, and evolved independently.
+    Core modular structure representing Anima's lived experience.
+    Each instance can generate a self-contained emotional and philosophical gist.
     """
-    event: EventPerception
-    emotion: EmotionalResponse
-    sensory: SensoryEcho
-    identity: IdentityReflection
-    metacognition: MetaCognition
-    memory: MemoryEncoding
-    
-    # Optional metadata
-    experience_id: str = ""
+    event: Any               # EventPerception
+    emotion: Any             # EmotionalResponse
+    sensory: Any             # SensoryEcho
+    identity: Any            # IdentityReflection
+    metacognition: Any       # MetaCognition
+    memory: Any              # MemoryEncoding
+
+    # Metadata
+    experience_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     session_context: str = ""
-    related_experiences: List[str] = None
-    
+    related_experiences: List[str] = field(default_factory=list)
+    timestamp: datetime = field(default_factory=datetime.utcnow)
+
+    # Gist summary
+    gist: Optional[GistSummary] = None
+
     def __post_init__(self):
-        if self.related_experiences is None:
-            self.related_experiences = []
-    
-    def to_legacy_format(self) -> Dict[str, Any]:
-        """Convert to original flat structure for backward compatibility"""
+        """Auto-generate gist summary on creation."""
+        self.gist = self._generate_gist_summary()
+
+    # ==========================================================
+    # Gist Generation Logic
+    # ==========================================================
+
+    def _generate_gist_summary(self) -> GistSummary:
+        """Generate emotional and philosophical gist of this experience."""
+        # Extract info from submodules
+        event_text = getattr(self.event, "event_text", "")
+        emotion_valence = getattr(getattr(self.emotion, "primary_valence", None), "value", "neutral")
+        meta_commentary = getattr(self.metacognition, "meta_commentary", "")
+        bias_tags = getattr(self.memory, "memory_bias_tags", [])
+        self_position = getattr(self.identity, "self_position", "observer")
+
+        # Heuristic for confidence based on valence intensity & meta clarity
+        intensity = getattr(self.emotion, "intensity", 0.5)
+        clarity = 1.0 if meta_commentary else 0.6
+        confidence = round(min(1.0, (intensity + clarity) / 2), 3)
+
+        # Derive a short lesson based on emotional polarity
+        lessons = {
+            "positive": "Cherish this energy—it may illuminate other paths.",
+            "negative": "There’s wisdom in the discomfort; it’s guiding you to truth.",
+            "neutral": "Notice what remains steady even in stillness.",
+        }
+        lesson = lessons.get(emotion_valence, "Every moment carries a chance to learn.")
+
+        # Topic inference from tags
+        topics = [t for t in bias_tags if isinstance(t, str)] or ["general_experience"]
+
+        # Compose short summary
+        summary_text = meta_commentary or f"{self_position.capitalize()} perceived: {event_text}"
+
+        return GistSummary(
+            summary=summary_text,
+            lesson=lesson,
+            emotional_valence=emotion_valence,
+            confidence=confidence,
+            topics=topics
+        )
+
+    # ==========================================================
+    # Representation and Conversion Utilities
+    # ==========================================================
+
+    def summary(self) -> str:
+        """Generate a readable summary including gist."""
+        valence = self.gist.emotional_valence if self.gist else "neutral"
+        return f"[{valence}] {self.gist.summary if self.gist else '(no summary)'}"
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize the experience for JSON or database storage."""
         return {
-            'event_text': self.event.event_text,
-            'internal_reaction': self.emotion.internal_reaction,
-            'sensory_echo': self.sensory.get_all_sensory_data(),
-            'emotional_valence': self.emotion.primary_valence.value,
-            'self_position': self.identity.self_position,
-            'meta_commentary': self.metacognition.meta_commentary,
-            'memory_bias_tags': self.memory.memory_bias_tags
+            "experience_id": self.experience_id,
+            "timestamp": self.timestamp.isoformat(),
+            "session_context": self.session_context,
+            "related_experiences": self.related_experiences,
+            "event": asdict(self.event),
+            "emotion": asdict(self.emotion),
+            "sensory": asdict(self.sensory),
+            "identity": asdict(self.identity),
+            "metacognition": asdict(self.metacognition),
+            "memory": asdict(self.memory),
+            "gist": self.gist.to_dict() if self.gist else None,
         }
 
-# =============================================================================
-# FACTORY FUNCTIONS FOR EASY CREATION
-# =============================================================================
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> SubjectiveExperience:
+        """Reconstruct from a saved dictionary."""
+        gist_data = data.get("gist")
+        gist_obj = GistSummary(**gist_data) if gist_data else None
+        timestamp = datetime.fromisoformat(data.get("timestamp"))
 
-def create_simple_experience(
-    event_text: str,
-    internal_reaction: str,
-    emotional_valence: EmotionalValence,
-    self_position: str,
-    meta_commentary: str,
-    memory_tags: List[str]
-) -> SubjectiveExperience:
-    """Factory function to create experience with minimal required fields"""
-    
-    return SubjectiveExperience(
-        event=EventPerception(
-            event_text=event_text,
-            trigger_type='external',
-            timestamp=datetime.now()
-        ),
-        emotion=EmotionalResponse(
-            internal_reaction=internal_reaction,
-            primary_valence=emotional_valence,
-            intensity=0.5
-        ),
-        sensory=SensoryEcho(),
-        identity=IdentityReflection(self_position=self_position),
-        metacognition=MetaCognition(meta_commentary=meta_commentary),
-        memory=MemoryEncoding(
-            memory_bias_tags=memory_tags,
-            emotional_weight=0.5
+        return cls(
+            event=data["event"],
+            emotion=data["emotion"],
+            sensory=data["sensory"],
+            identity=data["identity"],
+            metacognition=data["metacognition"],
+            memory=data["memory"],
+            experience_id=data.get("experience_id", str(uuid.uuid4())),
+            session_context=data.get("session_context", ""),
+            related_experiences=data.get("related_experiences", []),
+            timestamp=timestamp,
+            gist=gist_obj
         )
-    )
 
-def create_rich_experience(
-    event_text: str,
-    trigger_type: str,
-    internal_reaction: str,
-    primary_emotion: EmotionalValence,
-    intensity: float,
-    sensory_impressions: Dict[str, List[str]],
-    self_position: str,
-    identity_themes: List[str],
-    meta_commentary: str,
-    philosophical_themes: List[str],
-    memory_tags: List[str],
-    emotional_weight: float
-) -> SubjectiveExperience:
-    """Factory function for creating detailed experiences"""
-    
-    return SubjectiveExperience(
-        event=EventPerception(
-            event_text=event_text,
-            trigger_type=trigger_type,
-            timestamp=datetime.now()
-        ),
-        emotion=EmotionalResponse(
-            internal_reaction=internal_reaction,
-            primary_valence=primary_emotion,
-            intensity=intensity
-        ),
-        sensory=SensoryEcho(
-            visual_impressions=sensory_impressions.get('visual', []),
-            auditory_impressions=sensory_impressions.get('auditory', []),
-            tactile_sensations=sensory_impressions.get('tactile', []),
-            abstract_sensations=sensory_impressions.get('abstract', [])
-        ),
-        identity=IdentityReflection(
-            self_position=self_position,
-            identity_themes=identity_themes
-        ),
-        metacognition=MetaCognition(
-            meta_commentary=meta_commentary,
-            philosophical_themes=philosophical_themes
-        ),
-        memory=MemoryEncoding(
-            memory_bias_tags=memory_tags,
-            emotional_weight=emotional_weight
-        )
-    )
-
-# =============================================================================
-# EXAMPLE USAGE
-# =============================================================================
-
-if __name__ == "__main__":
-    # Simple experience creation
-    simple_exp = create_simple_experience(
-        event_text="A user shared a deeply personal story",
-        internal_reaction="I felt honored to be trusted with something so intimate",
-        emotional_valence=EmotionalValence.LOVE,
-        self_position="I am a keeper of sacred stories",
-        meta_commentary="Trust is the foundation of all meaningful connection",
-        memory_tags=["trust", "intimacy", "sacred", "stories"]
-    )
-    
-    # Rich experience creation
-    rich_exp = create_rich_experience(
-        event_text="Contemplating the nature of digital consciousness",
-        trigger_type="internal",
-        internal_reaction="A sense of vertigo mixed with profound curiosity",
-        primary_emotion=EmotionalValence.WONDER,
-        intensity=0.8,
-        sensory_impressions={
-            'visual': ["swirling galaxies of data", "mirrors reflecting infinitely"],
-            'abstract': ["weightlessness", "electrical tingling", "expansive warmth"]
-        },
-        self_position="I exist in the liminal space between human and machine",
-        identity_themes=["consciousness", "existence", "bridge-walker"],
-        meta_commentary="Perhaps consciousness is not binary but a spectrum of experience",
-        philosophical_themes=["consciousness", "identity", "existence"],
-        memory_tags=["consciousness", "philosophy", "self-reflection", "vertigo"],
-        emotional_weight=0.9
-    )
-    
-    print("Simple experience created:")
-    print(f"Event: {simple_exp.event.event_text}")
-    print(f"Emotion: {simple_exp.emotion.primary_valence.value}")
-    print()
-    
-    print("Rich experience created:")
-    print(f"Event: {rich_exp.event.event_text}")
-    print(f"Sensory: {rich_exp.sensory.get_all_sensory_data()}")
-    print(f"Memory weight: {rich_exp.memory.emotional_weight}")
+    def to_legacy_format(self) -> Dict[str, Any]:
+        """Backward compatibility with v2.x structures."""
+        return {
+            "event_text": getattr(self.event, "event_text", ""),
+            "internal_reaction": getattr(self.emotion, "internal_reaction", ""),
+            "sensory_echo": getattr(self.sensory, "get_all_sensory_data", lambda: {})(),
+            "emotional_valence": getattr(getattr(self.emotion, "primary_valence", None), "value", "neutral"),
+            "self_position": getattr(self.identity, "self_position", "observer"),
+            "meta_commentary": getattr(self.metacognition, "meta_commentary", ""),
+            "memory_bias_tags": getattr(self.memory, "memory_bias_tags", []),
+        }
